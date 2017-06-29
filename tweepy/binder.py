@@ -13,11 +13,12 @@ import requests
 import logging
 
 from tweepy.error import TweepError, RateLimitError, is_rate_limit_error_message
-from tweepy.utils import convert_to_utf8_str
+from tweepy.utils import convert_to_utf8_str, clean_path
 from tweepy.models import Model
 import six
 import sys
 
+#from .decorators import retry
 
 re_path_template = re.compile('{\w+}')
 
@@ -38,6 +39,7 @@ def bind_api(**config):
         upload_api = config.get('upload_api', False)
         use_cache = config.get('use_cache', True)
         session = requests.Session()
+        resource = method == 'GET' and clean_path(path) or None
 
         def __init__(self, args, kwargs):
             api = self.api
@@ -124,6 +126,7 @@ def bind_api(**config):
 
                 self.path = self.path.replace(variable, value)
 
+        #@retry(TweepError, tries=6, delay=5)
         def execute(self):
             self.api.cached_result = False
 
@@ -152,30 +155,27 @@ def bind_api(**config):
             # or maximum number of retries is reached.
             retries_performed = 0
             while retries_performed < self.retry_count + 1:
+                # If auth is RateLimitHandler, select the access token
+                if hasattr(self.api.auth, 'tokens'): # safe bet
+                    key, limit, remaining, reset = \
+                        self.api.auth.select_access_token(self.resource)
+                    self.api.auth.set_access_token(key)
+                    self._reset_time = reset
+                    self._remaining_calls = remaining
                 # handle running out of api calls
-                if self.wait_on_rate_limit:
-                    if self._reset_time is not None:
-                        if self._remaining_calls is not None:
-                            if self._remaining_calls < 1:
-                                sleep_time = self._reset_time - int(time.time())
-                                if sleep_time > 0:
-                                    if self.wait_on_rate_limit_notify:
-                                        log.warning("Rate limit reached. Sleeping for: %d" % sleep_time)
-                                    time.sleep(sleep_time + 5)  # sleep for few extra sec
-
-                # if self.wait_on_rate_limit and self._reset_time is not None and \
-                #                 self._remaining_calls is not None and self._remaining_calls < 1:
-                #     sleep_time = self._reset_time - int(time.time())
-                #     if sleep_time > 0:
-                #         if self.wait_on_rate_limit_notify:
-                #             log.warning("Rate limit reached. Sleeping for: %d" % sleep_time)
-                #         time.sleep(sleep_time + 5)  # sleep for few extra sec
+                if self._reset_time is not None and \
+                    self._remaining_calls is not None and self._remaining_calls == 0:
+                    sleep_time = self._reset_time - int(time.time())
+                    if self.wait_on_rate_limit:
+                        if sleep_time > 0:
+                            if self.wait_on_rate_limit_notify:
+                                log.warning("Rate limit reached. Sleeping for: {}, until: {}".format(sleep_time, time.strftime('%H:%M:%S', time.localtime(self._reset_time))))
+                            time.sleep(sleep_time + 5)  # sleep for few extra sec
 
                 # Apply authentication
                 auth = None
                 if self.api.auth:
                     auth = self.api.auth.apply_auth()
-
                 # Request compression if configured
                 if self.api.compression:
                     self.session.headers['Accept-encoding'] = 'gzip'
@@ -200,10 +200,23 @@ def bind_api(**config):
                 reset_time = resp.headers.get('x-rate-limit-reset')
                 if reset_time is not None:
                     self._reset_time = int(reset_time)
+
                 if self.wait_on_rate_limit and self._remaining_calls == 0 and (
                         # if ran out of calls before waiting switching retry last call
                         resp.status_code == 429 or resp.status_code == 420):
+                    # As the twitter reset_time is returned incorrectly early,
+                    # the program loops up to here until the rate_limit is reset.
+                    # Therefore, add a small sleep to reduce load.
+                    time.sleep(10)
                     continue
+
+                # If auth is RateLimitHandler, update rate limits
+                if hasattr(self.api.auth, 'tokens'):
+                    self.api.auth.update_rate_limits(
+                        self.api.auth.access_token, self.resource,
+                        remaining=self._remaining_calls, reset=self._reset_time
+                    )
+
                 retry_delay = self.retry_delay
                 # Exit request loop if non-retry error code
                 if resp.status_code == 200:

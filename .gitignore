@@ -10,3 +10,4 @@ build
 dist
 htmlcov
 tweepy.egg-info
+venv/

@@ -1,24 +1,40 @@
-Tweepy: Twitter for Python!
-======
+Tweepy with multiple access tokens
+==================================
 
-[![Join the chat at https://gitter.im/tweepy/tweepy](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/tweepy/tweepy?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![Build Status](http://img.shields.io/travis/tweepy/tweepy/master.svg?style=flat)](https://travis-ci.org/tweepy/tweepy)
-[![Documentation Status](http://img.shields.io/badge/docs-v3.6.0-brightgreen.svg?style=flat)](http://docs.tweepy.org)
-[![Downloads](http://img.shields.io/pypi/dm/tweepy.svg?style=flat)](https://crate.io/packages/tweepy) [![Version](http://img.shields.io/pypi/v/tweepy.svg?style=flat)](https://crate.io/packages/tweepy)
-[![Coverage Status](https://img.shields.io/coveralls/tweepy/tweepy/master.svg?style=flat)](https://coveralls.io/r/tweepy/tweepy?branch=master)
+This fork merges the current version of Tweepy (3.5.0) with the multiple
+authentication function from the fork by Alexandru Stancui, available here:
+https://github.com/svven/tweepy
+
+
+Changes
+-------
+
+* **Multiple access tokens with `RateLimitHandler`** (https://github.com/svven/tweepy/blob/master/tweepy/limit.py)
+
+> RateLimitHandler class inherits from OAuthHandler, and introduces add_access_token that can be used as follows:
+
+> ```python
+> from tweepy import RateLimitHandler
+> from config import CONSUMER_KEY, CONSUMER_SECRET, ACCESS_TOKENS
+>
+> def get_api():
+> 	auth = RateLimitHandler(CONSUMER_KEY, CONSUMER_SECRET)
+> 	for key, secret in ACCESS_TOKENS:
+> 		try:
+> 			auth.add_access_token(key, secret)
+> 		except Exception, e:
+> 			print key, e
+> 	print 'Token pool size: %d' % len(auth.tokens)
+> 	api = API(auth,
+> 		wait_on_rate_limit=True, wait_on_rate_limit_notify=True)
+> 	return api
+>
+> api = get_api()
+> ```
+
+> Provided access tokens are used selectively based on requested resource (https://dev.twitter.com/docs/rate-limiting/1.1/limits) and current rate limits. The access token with most remaining requests per window for the specified resource is being selected and used when applying the authentication, before the actual request is performed. This pattern ensures the usage of available access tokens in a round robin fashion, exploiting to maximum the rate limits.
 
 Installation
 ------------
-The easiest way to install the latest version
-is by using pip/easy_install to pull it from PyPI:
 
-    pip install tweepy
-
-You may also use Git to clone the repository from
-Github and install it manually:
-
-    git clone https://github.com/tweepy/tweepy.git
-    cd tweepy
-    python setup.py install
-
-Python 2.6 and 2.7, 3.3, 3.4, 3.5 & 3.6 are supported.
+    pip install git+https://github.com/rosscg/tweepy.git#egg=tweepy
