@@ -149,7 +149,7 @@ class RateLimitHandler(OAuthHandler):
 
        if not limits:
            limits = {u'limit': None, u'remaining': None, u'reset': None}
-           self.tokens[key]['resources'][unicode(resource)] = limits
+           self.tokens[key]['resources'][resource] = limits
        if limit is not None:
            limits['limit'] = int(limit)
        if remaining is not None:
