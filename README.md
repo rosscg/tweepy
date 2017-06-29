@@ -2,9 +2,14 @@ Tweepy with multiple access tokens
 ==================================
 
 This fork merges the current version of Tweepy (3.5.0) with the multiple
-authentication function from the fork by Alexandru Stancui, available here:
+authentication functionality from the fork by Alexandru Stancui, available here:
 https://github.com/svven/tweepy
 
+At the time of writing, there exists an issue with the Twitter API whereby
+the reset time for a resource, returned either in the response header as
+x-rate-limit-reset, or by the function api.rate_limit_status(), is incorrect.
+This is currently handled in the master and this fork by continuing a loop
+(binder.py, line 204).
 
 Changes
 -------
@@ -37,4 +42,4 @@ Changes
 Installation
 ------------
 
-    pip install git+https://github.com/rosscg/tweepy.git#egg=tweepy
+    pip install -e git+https://github.com/rosscg/tweepy.git#egg=tweepy
