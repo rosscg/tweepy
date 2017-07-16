@@ -320,7 +320,9 @@ class Stream(object):
                     length = int(line)
                     break
                 else:
-                    raise TweepError('Expecting length, unexpected value found')
+                    print('Error with line: {}'.format(line.strip()))
+                    self.listener.keep_alive()
+                    #raise TweepError('Expecting length, unexpected value found')
 
             next_status_obj = buf.read_len(length)
             if self.running and next_status_obj:
