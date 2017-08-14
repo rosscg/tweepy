@@ -320,7 +320,8 @@ class Stream(object):
                     length = int(line)
                     break
                 else:
-                    print('Error with line: {}'.format(line.strip()))
+                    # TODO: This triggers often with blank lines. Diagnose.
+                    #print('Error with line: \'{}\''.format(line)
                     self.listener.keep_alive()
                     #raise TweepError('Expecting length, unexpected value found')
 
